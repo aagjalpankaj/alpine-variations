@@ -1,0 +1,45 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      variation_name:
+        description: 'Alpine variation name to deploy'
+        required: true
+        type: choice
+        options:
+          - 'jq'
+        default: 'jq'
+      version:
+        description: 'Version to deploy'
+        required: true
+        type: choice
+        options:
+          - 'latest'
+          - '3.23'
+        default: 'latest'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy Alpine Variation
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+        
+      - name: Set up permissions for deploy script
+        run: chmod +x scripts/deploy.sh
+        
+      - name: Deploy variation
+        run: |
+          ./scripts/deploy.sh "${{ inputs.variation_name }}" "${{ inputs.version }}"
+        env:
+          VARIATION_NAME: ${{ inputs.variation_name }}
+          VERSION: ${{ inputs.version }}

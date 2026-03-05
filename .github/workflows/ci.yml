@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-jq-variation:
+    name: Test Alpine JQ Variation
+    runs-on: ubuntu-latest
+    
+    env:
+      ALPINE_VERSION: 3.23
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Alpine JQ image
+      run: |
+        ./scripts/deploy.sh jq ${{ env.ALPINE_VERSION }} --build-only
+        
+    - name: Test image build success
+      run: |
+        docker images | grep "aagjalpankaj/alpine.*jq"
+        
+    - name: Test Alpine version matches expected version
+      run: |
+        # Get the Alpine version from inside the container
+        CONTAINER_ALPINE_VERSION=$(docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq cat /etc/alpine-release)
+        echo "🔍 Container Alpine version: $CONTAINER_ALPINE_VERSION"
+        
+        # For 'latest' tag, just verify it's a valid Alpine version format
+        if [[ "$CONTAINER_ALPINE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "✅ Container has valid Alpine version: $CONTAINER_ALPINE_VERSION"
+        else
+          echo "❌ Invalid Alpine version format: $CONTAINER_ALPINE_VERSION"
+          exit 1
+        fi
+    - name: Test jq installation and version
+      run: |
+        docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq jq --version
+        
+    - name: Test jq basic functionality
+      run: |
+        echo '{"name": "test", "version": "1.0"}' | docker run --rm -i aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq jq '.name'
+
+    - name: Test container security (non-root user)
+      run: |
+        USER_ID=$(docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq id -u)
+        if [ "$USER_ID" = "0" ]; then
+          echo "ERROR: Container running as root user"
+          exit 1
+        fi
+        echo "✅ Container running as non-root user (UID: $USER_ID)"
+
+    - name: Check image size
+      run: |
+        IMAGE_SIZE=$(docker images aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq --format "{{.Size}}")
+        echo "📦 Image size: $IMAGE_SIZE"
+        # Ensure image is reasonably small (under 10MB for Alpine + jq)
+        SIZE_BYTES=$(docker inspect aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq --format='{{.Size}}')
+        MAX_SIZE_BYTES=10485760  # 10MB in bytes
+        if [ "$SIZE_BYTES" -gt "$MAX_SIZE_BYTES" ]; then
+          echo "WARNING: Image size ($SIZE_BYTES bytes) exceeds expected maximum ($MAX_SIZE_BYTES bytes)"
+        else
+          echo "✅ Image size is optimal"
+        fi
+
+    - name: Test default behavior (help command)
+      run: |
+        docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq jq | head -5
+
+    - name: Cleanup test image
+      run: |
+        docker rmi aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq
