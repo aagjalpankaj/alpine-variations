@@ -36,6 +36,7 @@ aagjalpankaj/alpine:{{version}}-{{variation}}
 | Variation      | Docker Hub                                                                                                                                                                                                                                         |
 |----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| 
 | **[jq](https://github.com/jqlang/jq)** | [![aagjalpankaj/alpine:latest-jq](https://img.shields.io/docker/image-size/aagjalpankaj/alpine/latest-jq?label=aagjalpankaj%2Falpine%3Alatest-jq)](https://hub.docker.com/r/aagjalpankaj/alpine/tags?name=latest-jq&page=1&ordering=-name) <br /> [![aagjalpankaj/alpine:3.23-jq](https://img.shields.io/docker/image-size/aagjalpankaj/alpine/3.23-jq?label=aagjalpankaj%2Falpine%3A3.23-jq)](https://hub.docker.com/r/aagjalpankaj/alpine/tags?name=3.23-jq&page=1&ordering=-name)         |
+| **[yq](https://github.com/mikefarah/yq)** | [![aagjalpankaj/alpine:latest-yq](https://img.shields.io/docker/image-size/aagjalpankaj/alpine/latest-yq?label=aagjalpankaj%2Falpine%3Alatest-yq)](https://hub.docker.com/r/aagjalpankaj/alpine/tags?name=latest-yq&page=1&ordering=-name) <br /> [![aagjalpankaj/alpine:3.23-yq](https://img.shields.io/docker/image-size/aagjalpankaj/alpine/3.23-yq?label=aagjalpankaj%2Falpine%3A3.23-yq)](https://hub.docker.com/r/aagjalpankaj/alpine/tags?name=3.23-yq&page=1&ordering=-name)         |
 | **[curl](https://github.com/curl/curl)** | [![aagjalpankaj/alpine:latest-curl](https://img.shields.io/docker/image-size/aagjalpankaj/alpine/latest-curl?label=aagjalpankaj%2Falpine%3Alatest-curl)](https://hub.docker.com/r/aagjalpankaj/alpine/tags?name=latest-curl&page=1&ordering=-name) <br /> [![aagjalpankaj/alpine:3.23-curl](https://img.shields.io/docker/image-size/aagjalpankaj/alpine/3.23-curl?label=aagjalpankaj%2Falpine%3A3.23-curl)](https://hub.docker.com/r/aagjalpankaj/alpine/tags?name=3.23-curl&page=1&ordering=-name) |
 | **[git](https://github.com/git/git)** | [![aagjalpankaj/alpine:latest-git](https://img.shields.io/docker/image-size/aagjalpankaj/alpine/latest-git?label=aagjalpankaj%2Falpine%3Alatest-git)](https://hub.docker.com/r/aagjalpankaj/alpine/tags?name=latest-git&page=1&ordering=-name) <br /> [![aagjalpankaj/alpine:3.23-git](https://img.shields.io/docker/image-size/aagjalpankaj/alpine/3.23-git?label=aagjalpankaj%2Falpine%3A3.23-git)](https://hub.docker.com/r/aagjalpankaj/alpine/tags?name=3.23-git&page=1&ordering=-name)     |
 
@@ -50,6 +51,16 @@ docker pull aagjalpankaj/alpine:latest-jq
 
 ```bash
 echo '{"name": "alpine-variations", "version": "1.0.0"}' | docker run --rm -i aagjalpankaj/alpine:latest-jq jq '.name'
+```
+
+### yq
+```bash
+docker pull aagjalpankaj/alpine:latest-yq
+```
+
+```bash
+echo 'name: alpine-variations
+version: 1.0.0' | docker run --rm -i aagjalpankaj/alpine:latest-yq yq '.name'
 ```
 
 ### curl

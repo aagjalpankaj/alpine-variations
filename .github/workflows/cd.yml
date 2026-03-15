@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - 'jq'
+          - 'yq'
           - 'curl'
           - 'git'
         default: 'jq'
