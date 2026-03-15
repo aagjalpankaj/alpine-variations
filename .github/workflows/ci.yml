@@ -78,4 +78,94 @@ jobs:
 
     - name: Cleanup test image
       run: |
-        docker rmi aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq
+        docker ps -a --filter ancestor=aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq -q | xargs -r docker rm -f || true
+        sleep 2
+        docker rmi -f aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-jq || true
+
+  test-curl-variation:
+    name: Test Alpine cURL Variation
+    runs-on: ubuntu-latest
+    
+    env:
+      ALPINE_VERSION: 3.23
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Alpine cURL image
+      run: |
+        ./scripts/deploy.sh curl ${{ env.ALPINE_VERSION }} --build-only
+        
+    - name: Test image build success
+      run: |
+        docker images | grep "aagjalpankaj/alpine.*curl"
+        
+    - name: Test Alpine version matches expected version
+      run: |
+        # Get the Alpine version from inside the container
+        CONTAINER_ALPINE_VERSION=$(docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl cat /etc/alpine-release)
+        echo "🔍 Container Alpine version: $CONTAINER_ALPINE_VERSION"
+        
+        # For 'latest' tag, just verify it's a valid Alpine version format
+        if [[ "$CONTAINER_ALPINE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "✅ Container has valid Alpine version: $CONTAINER_ALPINE_VERSION"
+        else
+          echo "❌ Invalid Alpine version format: $CONTAINER_ALPINE_VERSION"
+          exit 1
+        fi
+    - name: Test curl installation and version
+      run: |
+        docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl curl --version
+        
+    - name: Test curl basic functionality
+      run: |
+        # Test HTTP request to a reliable endpoint
+        docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl curl -s -o /dev/null -w "%{http_code}" https://httpbin.org/get | grep -q "200"
+        echo "✅ cURL HTTP request successful"
+
+    - name: Test curl with JSON response
+      run: |
+        # Test JSON response handling
+        RESPONSE=$(docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl curl -s https://httpbin.org/json)
+        if echo "$RESPONSE" | grep -q "slideshow"; then
+          echo "✅ cURL JSON response test passed"
+        else
+          echo "❌ cURL JSON response test failed"
+          exit 1
+        fi
+
+    - name: Test container security (non-root user)
+      run: |
+        USER_ID=$(docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl id -u)
+        if [ "$USER_ID" = "0" ]; then
+          echo "ERROR: Container running as root user"
+          exit 1
+        fi
+        echo "✅ Container running as non-root user (UID: $USER_ID)"
+
+    - name: Check image size
+      run: |
+        IMAGE_SIZE=$(docker images aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl --format "{{.Size}}")
+        echo "📦 Image size: $IMAGE_SIZE"
+        # Ensure image is reasonably small (under 15MB for Alpine + curl)
+        SIZE_BYTES=$(docker inspect aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl --format='{{.Size}}')
+        MAX_SIZE_BYTES=15728640  # 15MB in bytes (curl is larger than jq)
+        if [ "$SIZE_BYTES" -gt "$MAX_SIZE_BYTES" ]; then
+          echo "WARNING: Image size ($SIZE_BYTES bytes) exceeds expected maximum ($MAX_SIZE_BYTES bytes)"
+        else
+          echo "✅ Image size is optimal"
+        fi
+
+    - name: Test default behavior (help command)
+      run: |
+        docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl curl --help | head -5
+
+    - name: Cleanup test image
+      run: |
+        docker ps -a --filter ancestor=aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl -q | xargs -r docker rm -f || true
+        sleep 2
+        docker rmi -f aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl || true

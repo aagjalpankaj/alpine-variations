@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - 'jq'
+          - 'curl'
         default: 'jq'
       version:
         description: 'Version to deploy'
