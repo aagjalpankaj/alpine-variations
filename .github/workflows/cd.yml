@@ -10,6 +10,7 @@ on:
         options:
           - 'jq'
           - 'curl'
+          - 'git'
         default: 'jq'
       version:
         description: 'Version to deploy'

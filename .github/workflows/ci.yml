@@ -169,3 +169,87 @@ jobs:
         docker ps -a --filter ancestor=aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl -q | xargs -r docker rm -f || true
         sleep 2
         docker rmi -f aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-curl || true
+
+  test-git-variation:
+    name: Test Alpine Git Variation
+    runs-on: ubuntu-latest
+    
+    env:
+      ALPINE_VERSION: 3.23
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Alpine Git image
+      run: |
+        ./scripts/deploy.sh git ${{ env.ALPINE_VERSION }} --build-only
+        
+    - name: Test image build success
+      run: |
+        docker images | grep "aagjalpankaj/alpine.*git"
+        
+    - name: Test Alpine version matches expected version
+      run: |
+        CONTAINER_ALPINE_VERSION=$(docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git cat /etc/alpine-release)
+        echo "🔍 Container Alpine version: $CONTAINER_ALPINE_VERSION"
+
+        if [[ "$CONTAINER_ALPINE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "✅ Container has valid Alpine version: $CONTAINER_ALPINE_VERSION"
+        else
+          echo "❌ Invalid Alpine version format: $CONTAINER_ALPINE_VERSION"
+          exit 1
+        fi
+    - name: Test git installation and version
+      run: |
+        docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git git --version
+        
+    - name: Test git basic functionality
+      run: |
+        docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git sh -c '
+          git config --global user.email "test@example.com" &&
+          git config --global user.name "Test User" &&
+          git init /tmp/test-repo &&
+          cd /tmp/test-repo &&
+          echo "# Test Repository" > README.md &&
+          git add README.md &&
+          git commit -m "Initial commit" &&
+          git log --oneline | grep "Initial commit"
+        '
+        echo "✅ Git basic functionality test passed"
+
+    - name: Test container security (non-root user)
+      run: |
+        USER_ID=$(docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git id -u)
+        if [ "$USER_ID" = "0" ]; then
+          echo "ERROR: Container running as root user"
+          exit 1
+        fi
+        echo "✅ Container running as non-root user (UID: $USER_ID)"
+
+    - name: Check image size
+      run: |
+        IMAGE_SIZE=$(docker images aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git --format "{{.Size}}")
+        echo "📦 Image size: $IMAGE_SIZE"
+        # Ensure image is reasonably small (under 20MB for Alpine + git)
+        SIZE_BYTES=$(docker inspect aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git --format='{{.Size}}')
+        MAX_SIZE_BYTES=20971520  # 20MB in bytes (git is larger than curl/jq)
+        if [ "$SIZE_BYTES" -gt "$MAX_SIZE_BYTES" ]; then
+          echo "WARNING: Image size ($SIZE_BYTES bytes) exceeds expected maximum ($MAX_SIZE_BYTES bytes)"
+        else
+          echo "✅ Image size is optimal"
+        fi
+
+    - name: Test default behavior (help command)
+      run: |
+        docker run --rm aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git git --help | head -5
+
+    - name: Cleanup test image
+      run: |
+        docker ps -a --filter ancestor=aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git -q | xargs -r docker rm -f || true
+        # Wait a moment for any pending removals to complete
+        sleep 2
+        docker rmi -f aagjalpankaj/alpine:${{ env.ALPINE_VERSION }}-git || true
